@@ -45,11 +45,3 @@ struct TaskListView: View {
         }
     }
 }
-
-@available(iOS 13.0.0, *)
-struct TaskListView_Previews: PreviewProvider {
-    
-    static var previews: some View {
-        TaskListView(presenter: TaskListPresenter())
-    }
-}
