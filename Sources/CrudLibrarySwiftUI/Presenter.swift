@@ -1,11 +1,13 @@
-import Foundation
 import RxSwift
 
 protocol UserPresenterProtocol {
-    var users: PublishSubject<[User]> { get }
     func loadUsers()
-    func addUser(name: String, email: String)
-    func removeUser(id: Int)
+    func addUser(_ user: User)
+    func editUser(_ user: User)
+    func removeUser(_ id: Int)
+    
+    var users: PublishSubject<[User]> { get }
+    var errorMessage: PublishSubject<String> { get }
 }
 
 class UserPresenter: UserPresenterProtocol {
@@ -13,32 +15,38 @@ class UserPresenter: UserPresenterProtocol {
     private let disposeBag = DisposeBag()
     
     var users = PublishSubject<[User]>()
-
+    var errorMessage = PublishSubject<String>()
+    
     init(interactor: UserInteractorProtocol) {
         self.interactor = interactor
     }
-
+    
     func loadUsers() {
         interactor.fetchUsers()
-            .subscribe(onNext: { users in
-                self.users.onNext(users)
-            }, onError: { error in
-                print("Error fetching users: \(error)")
-            }).disposed(by: disposeBag)
+            .observe(on: MainScheduler.instance)
+            .subscribe(onNext: { self.users.onNext($0) },
+                       onError: { self.errorMessage.onNext($0.localizedDescription) })
+            .disposed(by: disposeBag)
     }
-
-    func addUser(name: String, email: String) {
-        let newUser = User(id: Int.random(in: 1000...9999), name: name, email: email)
-        interactor.createUser(newUser)
-            .subscribe(onNext: { success in
-                    self.loadUsers()
-            }).disposed(by: disposeBag)
+    
+    func addUser(_ user: User) {
+        interactor.createUser(user)
+            .subscribe(onNext: { _ in self.loadUsers() },
+                       onError: { self.errorMessage.onNext($0.localizedDescription) })
+            .disposed(by: disposeBag)
     }
-
-    func removeUser(id: Int) {
+    
+    func editUser(_ user: User) {
+        interactor.updateUser(user)
+            .subscribe(onNext: { _ in self.loadUsers() },
+                       onError: { self.errorMessage.onNext($0.localizedDescription) })
+            .disposed(by: disposeBag)
+    }
+    
+    func removeUser(_ id: Int) {
         interactor.deleteUser(id)
-            .subscribe(onNext: { success in
-                if success { self.loadUsers() }
-            }).disposed(by: disposeBag)
+            .subscribe(onNext: { _ in self.loadUsers() },
+                       onError: { self.errorMessage.onNext($0.localizedDescription) })
+            .disposed(by: disposeBag)
     }
 }
