@@ -1,47 +1,77 @@
-//
-//  TaskListView.swift
-//  CrudLibrarySwiftUI
-//
-//  Created by JECASTAÑOSM on 19/02/25.
-//
-
 import SwiftUI
+import RxSwift
 
-@available(iOS 13.0, *)
-struct TaskListView: View {
-    @ObservedObject var presenter: TaskListPresenter
+@available(iOS 14.0, *)
+struct UserView: View {
+    @ObservedObject private var viewModel: UserViewModel
     
+    init(presenter: UserPresenter) {
+        self.viewModel = UserViewModel(presenter: presenter)
+    }
+
     var body: some View {
         NavigationView {
-            List(presenter.tasks) { task in
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(task.title).font(.headline)
-                        Text(task.completed ? "Completed" : "Pending").font(.subheadline)
+            VStack {
+                List(viewModel.users) { user in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(user.name).font(.headline)
+                            Text(user.email).font(.subheadline)
+                        }
+                        Spacer()
+                        Button(action: {
+                            viewModel.deleteUser(id: user.id)
+                        }) {
+                            Image(systemName: "trash").foregroundColor(.red)
+                        }
                     }
-                    Spacer()
-                    Button(action: {
-                        presenter.updateTask(task)
-                    }) {
-                        Text(task.completed ? "Mark as Pending" : "Mark as Completed")
-                            .foregroundColor(.blue)
-                    }
-                    Button(action: {
-                        presenter.deleteTask(task)
-                    }) {
-                        Text("Delete")
-                            .foregroundColor(.red)
-                    }
+                }
+                
+                Button(action: {
+                    viewModel.addUser(name: "Nuevo Usuario", email: "nuevo@correo.com")
+                }) {
+                    Text("Agregar Usuario").padding().background(Color.blue).foregroundColor(.white).cornerRadius(10)
                 }
                 .padding()
             }
-            .navigationBarTitle("Tasks")
-            .navigationBarItems(trailing: Button("Add Task") {
-                presenter.addTask()
+            .onAppear {
+                viewModel.loadUsers()
+            }
+            .navigationTitle("Usuarios")
+        }
+    }
+}
+
+@available(iOS 13.0, *)
+class UserViewModel: ObservableObject {
+    @Published var users: [User] = []
+    
+    private let presenter: UserPresenter
+    private let disposeBag = DisposeBag()
+
+    init(presenter: UserPresenter) {
+        self.presenter = presenter
+        bind()
+    }
+
+    private func bind() {
+        presenter.users
+            .observe(on: MainScheduler.instance)
+            .subscribe(onNext: { users in
+                self.users = users
             })
-        }
-        .onAppear {
-            presenter.fetchTasks()
-        }
+            .disposed(by: disposeBag)
+    }
+
+    func loadUsers() {
+        presenter.loadUsers()
+    }
+
+    func addUser(name: String, email: String) {
+        presenter.addUser(name: name, email: email)
+    }
+
+    func deleteUser(id: Int) {
+        presenter.removeUser(id: id)
     }
 }

@@ -1,67 +1,44 @@
-//
-//  Presenter.swift
-//  CrudLibrarySwiftUI
-//
-//  Created by JECASTAÑOSM on 19/02/25.
-//
-
-// TaskListPresenter.swift
 import Foundation
-import Combine
+import RxSwift
 
-protocol TaskListPresenterProtocol {
-    var tasks: [Task] { get }
-    func fetchTasks()
-    func addTask()
-    func updateTask(_ task: Task)
-    func deleteTask(_ task: Task)
+protocol UserPresenterProtocol {
+    var users: PublishSubject<[User]> { get }
+    func loadUsers()
+    func addUser(name: String, email: String)
+    func removeUser(id: Int)
 }
 
-@available(iOS 13.0, *)
-class TaskListPresenter: TaskListPresenterProtocol, ObservableObject {
-    @Published var tasks: [Task] = []
+class UserPresenter: UserPresenterProtocol {
+    private let interactor: UserInteractorProtocol
+    private let disposeBag = DisposeBag()
+    
+    var users = PublishSubject<[User]>()
 
-    private var interactor: TaskInteractorProtocol
-    
-    init(interactor: TaskInteractorProtocol = TaskInteractor()) {
+    init(interactor: UserInteractorProtocol) {
         self.interactor = interactor
-        fetchTasks()
     }
-    
-    func fetchTasks() {
-        interactor.fetchTasks { tasks in
-            if let tasks = tasks {
-                self.tasks = tasks
-            }
-        }
+
+    func loadUsers() {
+        interactor.fetchUsers()
+            .subscribe(onNext: { users in
+                self.users.onNext(users)
+            }, onError: { error in
+                print("Error fetching users: \(error)")
+            }).disposed(by: disposeBag)
     }
-    
-    func addTask() {
-        let newTask = Task(id: 0, title: "New Task", completed: true)
-        interactor.addTask(newTask) { task in
-            if let task = task {
-                self.tasks.append(task)
-            }
-        }
+
+    func addUser(name: String, email: String) {
+        let newUser = User(id: Int.random(in: 1000...9999), name: name, email: email)
+        interactor.createUser(newUser)
+            .subscribe(onNext: { success in
+                    self.loadUsers()
+            }).disposed(by: disposeBag)
     }
-    
-    func updateTask(_ task: Task) {
-        var updatedTask = task
-        updatedTask.title = "Updated: \(task.title)"
-        interactor.updateTask(updatedTask) { task in
-            if let task = task {
-                if let index = self.tasks.firstIndex(where: { $0.id == task.id }) {
-                    self.tasks[index] = task
-                }
-            }
-        }
-    }
-    
-    func deleteTask(_ task: Task) {
-        interactor.deleteTask(task) { success in
-            if success {
-                self.tasks.removeAll { $0.id == task.id }
-            }
-        }
+
+    func removeUser(id: Int) {
+        interactor.deleteUser(id)
+            .subscribe(onNext: { success in
+                if success { self.loadUsers() }
+            }).disposed(by: disposeBag)
     }
 }

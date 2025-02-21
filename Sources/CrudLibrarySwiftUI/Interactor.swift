@@ -1,58 +1,72 @@
+import Alamofire
+import RxSwift
 
-// TaskInteractor.swift
-import Foundation
-
-protocol TaskInteractorProtocol {
-    func fetchTasks(completion: @escaping ([Task]?) -> Void)
-    func addTask(_ task: Task, completion: @escaping (Task?) -> Void)
-    func updateTask(_ task: Task, completion: @escaping (Task?) -> Void)
-    func deleteTask(_ task: Task, completion: @escaping (Bool) -> Void)
+protocol UserInteractorProtocol {
+    func fetchUsers() -> Observable<[User]>
+    func createUser(_ user: User) -> Observable<User>
+    func updateUser(_ user: User) -> Observable<User>
+    func deleteUser(_ id: Int) -> Observable<Bool>
 }
 
-class TaskInteractor: TaskInteractorProtocol {
-    private let apiService = APIService()
+class UserInteractor: UserInteractorProtocol {
     
-    func fetchTasks(completion: @escaping ([Task]?) -> Void) {
-        apiService.fetchTasks { result in
-            switch result {
-            case .success(let tasks):
-                completion(tasks)
-            case .failure:
-                completion(nil)
+    private let baseURL = "https://jsonplaceholder.typicode.com/users"
+
+    func fetchUsers() -> Observable<[User]> {
+        return Observable.create { observer in
+            AF.request(self.baseURL).responseDecodable(of: [User].self) { response in
+                switch response.result {
+                case .success(let users):
+                    observer.onNext(users)
+                    observer.onCompleted()
+                case .failure(let error):
+                    observer.onError(error)
+                }
             }
+            return Disposables.create()
         }
     }
-    
-    func addTask(_ task: Task, completion: @escaping (Task?) -> Void) {
-        apiService.createTask(task) { result in
-            switch result {
-            case .success(let task):
-                completion(task)
-            case .failure:
-                completion(nil)
+
+    func createUser(_ user: User) -> Observable<User> {
+        
+        return Observable.create { observer in
+            AF.request(self.baseURL, method: .post, parameters: user, encoder: JSONParameterEncoder.default)
+                .responseDecodable(of: User.self) { response in
+                switch response.result {
+                case .success(let users):
+                    observer.onNext(users)
+                    observer.onCompleted()
+                case .failure(let error):
+                    observer.onError(error)
+                }
             }
+            return Disposables.create()
         }
     }
-    
-    func updateTask(_ task: Task, completion: @escaping (Task?) -> Void) {
-        apiService.updateTask(task) { result in
-            switch result {
-            case .success(let task):
-                completion(task)
-            case .failure:
-                completion(nil)
+
+    func updateUser(_ user: User) -> Observable<User> {
+        return Observable.create { observer in
+            AF.request("\(self.baseURL)/\(user.id)", method: .put,  parameters: user, encoder: JSONParameterEncoder.default)
+                .responseDecodable(of: User.self){ response in
+                switch response.result {
+                case .success(let users):
+                    observer.onNext(users)
+                    observer.onCompleted()
+                case .failure(let error):
+                    observer.onError(error)
+                }
             }
+            return Disposables.create()
         }
     }
-    
-    func deleteTask(_ task: Task, completion: @escaping (Bool) -> Void) {
-        apiService.deleteTask(task) { result in
-            switch result {
-            case .success:
-                completion(true)
-            case .failure:
-                completion(false)
+
+    func deleteUser(_ id: Int) -> Observable<Bool> {
+        return Observable.create { observer in
+            AF.request("\(self.baseURL)/\(id)", method: .delete).response { response in
+                observer.onNext(response.error == nil)
+                observer.onCompleted()
             }
+            return Disposables.create()
         }
     }
 }

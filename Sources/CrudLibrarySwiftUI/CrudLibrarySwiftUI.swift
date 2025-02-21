@@ -24,7 +24,7 @@ public struct SplashCalculadora: View {
                         self.timer.upstream.connect().cancel()
                     }
                 }.fullScreenCover(isPresented: $pushView) {
-                    TaskListView(presenter: TaskListPresenter())
+                    UserRouter.createUserView()
                 }
         }}
 }
@@ -32,6 +32,6 @@ public struct SplashCalculadora: View {
 @available(iOS 14.0.0, *)
 struct ContentView_preview: PreviewProvider {
     static var previews: some View {
-        TaskListView(presenter: TaskListPresenter())
+        UserRouter.createUserView()
     }
 }
